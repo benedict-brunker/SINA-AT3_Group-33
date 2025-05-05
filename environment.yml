@@ -1,0 +1,8 @@
+name: SINA-AT3
+dependencies: 
+  - networkx
+  - matplotlib
+  - transformers
+  - pytorch 
+  - torchvision 
+  - torchaudio 

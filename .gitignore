@@ -1,10 +1,13 @@
 # secrets 
 .env 
+
 # too big 
 data/
+graph/
 setup/
 lookups/
-# irrelevant
+
+# obsolete
 notebooks/sandbox.ipynb
 notebooks/wrangling.ipynb
 notebooks/2018_data.ipynb

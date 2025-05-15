@@ -35,7 +35,7 @@ S = pd.DataFrame.sparse.from_spmatrix(
     index=S_rows, 
     columns=S_cols 
 )
-"Matrices assembled into dataframes"
+print("Matrices assembled into dataframes")
 
 # == Helper Function == 
 def keep_top_k(sim_row, k): 
@@ -56,24 +56,36 @@ def predict_ratings(utility_matrix, similarity_matrix, k_only=True, k=5):
 
     predicted = utility_filled.dot(S_norm) 
 
-    predicted[~utility_matrix.isna()] = utility_matrix[~utility_matrix.isna()] 
-
-    return predicted 
+    try:
+        predicted = predicted.where(utility_matrix.isna(), utility_matrix)
+        return predicted, True
+    except Exception as e: 
+        print(f"{e}: saving prediction matrix before restoring original ratings.") 
+        return predicted, False
 
 # === Call === 
 if __name__ == "__main__":
 
     print("Computing prediction matrix ...") 
-    P = predict_ratings(U, S, k_only=False) 
-    print("Prediction matrix computed.") 
-    # log 
-    P_sparse = sparse.csr_matrix(P.values) 
-    P_rows = P.index.tolist() 
-    P_cols = P.index.tolist() 
-    sparse.save_npz(os.path.join(lookups_dir, "prediction_matrix.npz"), P_sparse) 
-    np.save(os.path.join(lookups_dir, "P_rows.npy"), P_rows) 
-    np.save(os.path.join(lookups_dir, "P_cols.npy"), P_cols) 
-    print(f"Matrix saved to {lookups_dir}") 
-
+    P, return_val = predict_ratings(U, S, k_only=False) 
+    if return_val:
+        print("Prediction matrix computed with original ratings restored.") 
+        # log 
+        P_sparse = sparse.csr_matrix(P.values) 
+        P_rows = P.index.tolist() 
+        P_cols = P.columns.tolist() 
+        sparse.save_npz(os.path.join(lookups_dir, "prediction_matrix.npz"), P_sparse) 
+        np.save(os.path.join(lookups_dir, "P_rows.npy"), P_rows) 
+        np.save(os.path.join(lookups_dir, "P_cols.npy"), P_cols) 
+        print(f"Matrix saved to {lookups_dir}") 
+    else: 
+        print("Prediction matrix computed with original ratings potentially overwritten.")
+        P_sparse = sparse.csr_matrix(P.values) 
+        P_rows = P.index.tolist() 
+        P_cols = P.columns.tolist() 
+        sparse.save_npz(os.path.join(lookups_dir, "prediction_matrix_overwritten.npz"), P_sparse) 
+        np.save(os.path.join(lookups_dir, "P_rows.npy"), P_rows) 
+        np.save(os.path.join(lookups_dir, "P_cols.npy"), P_cols) 
+        print(f"Matrix saved to {lookups_dir}")
 
 

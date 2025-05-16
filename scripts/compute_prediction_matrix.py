@@ -14,27 +14,32 @@ project_dir = os.path.dirname(os.getcwd())
 lookups_dir = os.path.join(project_dir, "lookups") 
 
 # === Reload data === 
+
+# Indices 
+product_index = np.load(os.path.join(lookups_dir, "product_index.npy"), allow_pickle=True)
+user_index = np.load(os.path.join(lookups_dir, "user_columns.npy"), allow_pickle=True) 
+print("Indices loaded") 
+
+# Matrices
 U_sparse = sparse.load_npz(os.path.join(lookups_dir, "utility_matrix.npz"))
-U_rows = np.load(os.path.join(lookups_dir, "U_rows.npy"), allow_pickle=True)
-U_cols = np.load(os.path.join(lookups_dir, "U_cols.npy"), allow_pickle=True) 
 print("Utility matrix loaded")
 
 S_sparse = sparse.load_npz(os.path.join(lookups_dir, "similarity_matrix.npz")) 
-S_rows = np.load(os.path.join(lookups_dir, "S_rows.npy"), allow_pickle=True) 
-S_cols = np.load(os.path.join(lookups_dir, "U_cols.npy"), allow_pickle=True) 
 print("Similarity matrix loaded") 
 
 # Reassemble dataframes
 U = pd.DataFrame.sparse.from_spmatrix(
     U_sparse,
-    index=U_rows,
-    columns=U_cols
+    index=product_index,
+    columns=user_index
 )
+
 S = pd.DataFrame.sparse.from_spmatrix(
     S_sparse, 
-    index=S_rows, 
-    columns=S_cols 
+    index=user_index, 
+    columns=user_index 
 )
+
 print("Matrices assembled into dataframes")
 
 # == Helper Function == 
@@ -44,20 +49,27 @@ def keep_top_k(sim_row, k):
 
 # == Main Function == 
 def predict_ratings(utility_matrix, similarity_matrix, k_only=True, k=5): 
-    utility_filled = utility_matrix.fillna(0) 
+
     if k_only: 
         tqdm.pandas(desc="Filtering top-k similarities") 
         S_topk = similarity_matrix.progress_apply(keep_top_k, axis=1) 
     else: 
         S_topk = similarity_matrix.copy() 
     
-    S_topk = S_topk.fillna(0) 
-    S_norm = S_topk.div(S_topk.sum(axis=0), axis=1).fillna(0) 
+    S_norm = S_topk.div(S_topk.sum(axis=0), axis=1)
 
-    predicted = utility_filled.dot(S_norm) 
+    # downcast matrices to float32 to save memory 
+    utility_matrix = utility_matrix.astype(np.float32) 
+    S_norm = S_norm.astype(np.float32) 
 
+    # compute prediction matrix as dot product of user similarity and known ratings
+    predicted = utility_matrix.dot(S_norm) 
+
+    # use the utility matrix to mark the known ratings (where no prediction is wanted)
+    ## known ratings will be marked with nan and no recommendation with 0
     try:
-        predicted = predicted.where(utility_matrix.isna(), utility_matrix)
+        rated_mask = utility_matrix > 0
+        predicted = predicted.mask(rated_mask, -1)
         return predicted, True
     except Exception as e: 
         print(f"{e}: saving prediction matrix before restoring original ratings.") 
@@ -70,22 +82,13 @@ if __name__ == "__main__":
     P, return_val = predict_ratings(U, S, k_only=False) 
     if return_val:
         print("Prediction matrix computed with original ratings restored.") 
-        # log 
         P_sparse = sparse.csr_matrix(P.values) 
-        P_rows = P.index.tolist() 
-        P_cols = P.columns.tolist() 
         sparse.save_npz(os.path.join(lookups_dir, "prediction_matrix.npz"), P_sparse) 
-        np.save(os.path.join(lookups_dir, "P_rows.npy"), P_rows) 
-        np.save(os.path.join(lookups_dir, "P_cols.npy"), P_cols) 
         print(f"Matrix saved to {lookups_dir}") 
     else: 
         print("Prediction matrix computed with original ratings potentially overwritten.")
         P_sparse = sparse.csr_matrix(P.values) 
-        P_rows = P.index.tolist() 
-        P_cols = P.columns.tolist() 
         sparse.save_npz(os.path.join(lookups_dir, "prediction_matrix_overwritten.npz"), P_sparse) 
-        np.save(os.path.join(lookups_dir, "P_rows.npy"), P_rows) 
-        np.save(os.path.join(lookups_dir, "P_cols.npy"), P_cols) 
         print(f"Matrix saved to {lookups_dir}")
 
 

@@ -33,12 +33,14 @@ U = pd.DataFrame.sparse.from_spmatrix(
     index=product_index,
     columns=user_index
 )
+del U_sparse
 
 S = pd.DataFrame.sparse.from_spmatrix(
     S_sparse, 
     index=user_index, 
     columns=user_index 
 )
+del S_sparse
 
 print("Matrices assembled into dataframes")
 
@@ -53,10 +55,13 @@ def predict_ratings(utility_matrix, similarity_matrix, k_only=True, k=5):
     if k_only: 
         tqdm.pandas(desc="Filtering top-k similarities") 
         S_topk = similarity_matrix.progress_apply(keep_top_k, axis=1) 
+        del similarity_matrix
     else: 
         S_topk = similarity_matrix.copy() 
+        del similarity_matrix
     
     S_norm = S_topk.div(S_topk.sum(axis=0), axis=1)
+    del S_topk 
 
     # downcast matrices to float32 to save memory 
     utility_matrix = utility_matrix.astype(np.float32) 
@@ -64,12 +69,14 @@ def predict_ratings(utility_matrix, similarity_matrix, k_only=True, k=5):
 
     # compute prediction matrix as dot product of user similarity and known ratings
     predicted = utility_matrix.dot(S_norm) 
+    del S_norm
 
     # use the utility matrix to mark the known ratings (where no prediction is wanted)
     ## known ratings will be marked with nan and no recommendation with 0
     try:
         rated_mask = utility_matrix > 0
         predicted = predicted.mask(rated_mask, -1)
+        del rated_mask
         return predicted, True
     except Exception as e: 
         print(f"{e}: saving prediction matrix before restoring original ratings.") 

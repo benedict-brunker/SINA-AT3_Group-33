@@ -2,10 +2,15 @@
 .env 
 
 # too big 
-data/
-graph/
+*.gz
+*.pkl
+*.zip
+*.npz
+*.npy
+*.json
+
+# probably not needed -- this was for neo4j
 setup/
-lookups/
 
 # obsolete
 notebooks/sandbox.ipynb

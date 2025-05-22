@@ -1,8 +1,21 @@
 name: SINA-AT3
+channels: 
+  - conda-forge
+  - defaults
 dependencies: 
+  - numpy 
+  - scipy 
+  - pandas
+  - scikit-learn
+  - ipykernel
   - networkx
   - matplotlib
   - transformers
   - pytorch 
   - torchvision 
-  - torchaudio 
+  - torchaudio
+  - gdown 
+  ## uncomment if you intend to use these LLM API packages:
+  # - google-generativeai 
+  # - langchain
+  # - openai

@@ -2,12 +2,14 @@
 .env 
 
 # too big 
+*.csv
 *.gz
 *.pkl
 *.zip
 *.npz
 *.npy
 *.json
+*.graphml
 
 # probably not needed -- this was for neo4j
 setup/
